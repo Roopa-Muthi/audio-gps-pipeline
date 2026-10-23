@@ -23,6 +23,11 @@ class Settings:
     audio_chunk_seconds: float = float(os.getenv("AUDIO_CHUNK_SECONDS", "2"))
     gps_emit_interval_seconds: float = float(os.getenv("GPS_EMIT_INTERVAL_SECONDS", "1"))
     whisper_model_size: str = os.getenv("WHISPER_MODEL_SIZE", "base")
+    # Empty string = auto-detect language per audio chunk.
+    # Or force a specific ISO 639-1 code for better accuracy/speed, e.g.:
+    # "te" Telugu, "hi" Hindi, "ta" Tamil, "kn" Kannada, "ml" Malayalam,
+    # "bn" Bengali, "mr" Marathi, "gu" Gujarati, "pa" Punjabi, "ur" Urdu, "en" English
+    whisper_language: str = os.getenv("WHISPER_LANGUAGE", "")
 
 
 settings = Settings()

@@ -16,7 +16,6 @@ from src.gps_tracker import GpsTracker, GpsFix
 from src.conversation_parser import parse_transcript
 from src.fallback import local_parse
 from src.schemas import ConversationEvent
-from src.security import sha256_checksum
 from src.semantic_cache import SemanticCache
 
 
@@ -32,14 +31,15 @@ class Orchestrator:
         async for fix in self.gps.stream_fixes():
             self._latest_fix = fix
 
-    async def _handle_transcript(self, transcript: str) -> ConversationEvent:
+    async def _handle_transcript(self, transcript: str) -> tuple[ConversationEvent, float]:
         start = time.perf_counter()
         lat = self._latest_fix.lat if self._latest_fix else None
         lon = self._latest_fix.lon if self._latest_fix else None
 
         cached = self.cache.lookup(transcript)
         if cached is not None:
-            return cached
+            elapsed_ms = (time.perf_counter() - start) * 1000
+            return cached, elapsed_ms
 
         try:
             event = await asyncio.wait_for(
@@ -57,14 +57,12 @@ class Orchestrator:
         elapsed_ms = (time.perf_counter() - start) * 1000
         print(f"[orchestrator] event resolved in {elapsed_ms:.1f}ms "
               f"(budget {settings.latency_budget_ms}ms) source={event.source}")
-        return event
+        return event, elapsed_ms
 
     async def _audio_loop(self, on_event):
         async for transcript in self.audio.stream_transcripts():
-            event = await self._handle_transcript(transcript)
-            payload = event.model_dump()
-            payload["checksum"] = sha256_checksum(payload)
-            await on_event(event)
+            event, elapsed_ms = await self._handle_transcript(transcript)
+            await on_event(event, elapsed_ms)
 
     async def run(self, on_event):
         self.audio.start()
